@@ -47,8 +47,8 @@ Recovers lost and deleted files (especially images and videos) from disk images,
 ### Install & Run
 
 ```bash
-git clone https://github.com/Harrisonegbo/Retrievo.git
-cd Retrievo
+git clone https://github.com/Harrisonegbo/FileRecover-Pro.git
+cd FileRecover-Pro
 
 python -m venv venv
 venv\Scripts\activate
