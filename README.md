@@ -22,7 +22,11 @@ Recovers lost and deleted files (especially images and videos) from disk images,
 | **Confidence Scoring** | Header + footer + format-specific validators produce a confidence score |
 | **Forensic Reporting** | Generates CSV + JSON recovery reports with offsets, sizes, and confidence |
 | **Safe by Design** | Never writes to the source media – all recovered files go to a user-chosen destination |
-| **Modern UI** | Dark-themed CustomTkinter interface with live progress, preview, and multi-select |
+| **Modern UI** | Menu-driven suite: File / Scan / Tools / View / Help, filters, preview |
+| **Case Management** | Case ID, examiner, organization, notes – embedded in reports |
+| **Hash Verification** | MD5, SHA-1, SHA-256 of recovered evidence |
+| **Hex Viewer** | Inspect raw bytes of carved candidates |
+| **Evidence Filters** | Filter results by image / video / document + name search |
 
 ---
 

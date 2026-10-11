@@ -1,6 +1,6 @@
 """
 Recovery / export engine – writes recovered items to a safe destination.
-Never writes back to the source media.
+Never writes back to the source media. Produces forensic reports with hashes.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from .scanner import RecoverableItem
+from .forensics import CaseInfo, hash_bytes, hash_file
 
 logger = logging.getLogger("Retrievo")
 
@@ -24,6 +25,10 @@ class RecoveryEngine:
         progress_callback: Optional[Callable[[float, str], None]] = None,
     ):
         self.progress_callback = progress_callback
+        self.case: Optional[CaseInfo] = None
+
+    def set_case(self, case: CaseInfo) -> None:
+        self.case = case
 
     def _report(self, p: float, msg: str) -> None:
         if self.progress_callback:
@@ -35,6 +40,7 @@ class RecoveryEngine:
         destination: str | Path,
         overwrite: bool = False,
         write_report: bool = True,
+        compute_hashes: bool = True,
     ) -> List[Path]:
         dest = Path(destination)
         dest.mkdir(parents=True, exist_ok=True)
@@ -57,14 +63,16 @@ class RecoveryEngine:
 
                 if item.data is not None:
                     out_path.write_bytes(item.data)
+                    hashes = hash_bytes(item.data) if compute_hashes else {}
                 elif item.original_path and Path(item.original_path).is_file():
                     shutil.copy2(item.original_path, out_path)
+                    hashes = hash_file(out_path) if compute_hashes else {}
                 else:
                     logger.warning("No data for %s – skipped", item.name)
                     continue
 
                 written.append(out_path)
-                report_rows.append({
+                row = {
                     "name": out_path.name,
                     "original_name": item.name,
                     "size": item.size,
@@ -73,7 +81,11 @@ class RecoveryEngine:
                     "offset": f"0x{item.offset:X}" if item.offset else "",
                     "confidence": f"{item.confidence:.2f}",
                     "recovered_path": str(out_path),
-                })
+                    "md5": hashes.get("md5", ""),
+                    "sha1": hashes.get("sha1", ""),
+                    "sha256": hashes.get("sha256", ""),
+                }
+                report_rows.append(row)
                 self._report(
                     (idx + 1) / total,
                     f"Recovered: {out_path.name} ({item.size_human})",
@@ -99,13 +111,18 @@ class RecoveryEngine:
             writer.writeheader()
             writer.writerows(rows)
 
+        payload = {
+            "generated": datetime.now(timezone.utc).isoformat(),
+            "tool": "Retrievo",
+            "version": "1.1",
+            "count": len(rows),
+            "files": rows,
+        }
+        if self.case:
+            payload["case"] = self.case.to_dict()
+
         with open(json_path, "w", encoding="utf-8") as f:
-            json.dump({
-                "generated": datetime.now(timezone.utc).isoformat(),
-                "tool": "Retrievo",
-                "count": len(rows),
-                "files": rows,
-            }, f, indent=2)
+            json.dump(payload, f, indent=2)
 
         logger.info("Forensic report written: %s", csv_path)
 
