@@ -18,10 +18,15 @@ from core.scanner import RecoveryScanner, RecoverableItem
 from core.recover import RecoveryEngine
 from core.disk_access import list_physical_drives, list_volumes
 from core.forensics import CaseInfo, hash_bytes, hash_file
+from core.memory_capture import (
+    list_processes, dump_process_memory, capture_physical_ram,
+    collect_live_triage, find_ram_acquisitor, CaptureResult,
+)
 from ui.results_view import ResultsView
 from ui.widgets import ProgressPanel, StatusBar
 from ui.dialogs import (
     CaseDialog, SettingsDialog, AboutDialog, HexViewerDialog, HashResultDialog,
+    ProcessPickerDialog,
 )
 
 logger = logging.getLogger("Retrievo")
@@ -95,6 +100,15 @@ class MainWindow(ctk.CTk):
         tools_m.add_separator()
         tools_m.add_command(label="Settings…", command=self._open_settings)
         menubar.add_cascade(label="Tools", menu=tools_m)
+
+        mem_m = tk.Menu(menubar, tearoff=0)
+        mem_m.add_command(label="Capture Physical RAM…", command=self._capture_physical_ram)
+        mem_m.add_command(label="Dump Process Memory…", command=self._dump_process_memory)
+        mem_m.add_separator()
+        mem_m.add_command(label="Live Triage Snapshot…", command=self._live_triage)
+        mem_m.add_separator()
+        mem_m.add_command(label="Check RAM Acquisition Tool…", command=self._check_ram_tool)
+        menubar.add_cascade(label="Memory", menu=mem_m)
 
         view_m = tk.Menu(menubar, tearoff=0)
         view_m.add_command(label="Select All Results", command=lambda: self.results.select_all())
@@ -469,6 +483,140 @@ class MainWindow(ctk.CTk):
     def _on_progress(self, value: float, message: str) -> None:
         self.after(0, lambda: self.progress_panel.update(value, message))
         self.after(0, lambda: self.status.set_text(message))
+
+
+    # ------------------------------------------------------------------
+    # Memory acquisition (Magnet RAM Capture–style capabilities)
+    # ------------------------------------------------------------------
+    def _mem_dest(self) -> Path:
+        dest = Path(self.dest_var.get().strip() or (Path.home() / "Retrievo_Recovered"))
+        dest.mkdir(parents=True, exist_ok=True)
+        return dest
+
+    def _check_ram_tool(self) -> None:
+        tool = find_ram_acquisitor()
+        if tool:
+            mb.showinfo(
+                "RAM Acquisition Tool",
+                f"Found: {tool}\n\n"
+                "Physical RAM capture is available via Memory → Capture Physical RAM.\n"
+                "Run Retrievo as Administrator for best results.",
+            )
+        else:
+            mb.showwarning(
+                "RAM Acquisition Tool Not Found",
+                "No WinPmem / DumpIt binary was found.\n\n"
+                "To capture full physical RAM (like Magnet RAM Capture):\n"
+                "1. Download winpmem_mini_x64.exe (open-source)\n"
+                "2. Place it in a 'tools' folder next to Retrievo\n"
+                "3. Run Retrievo as Administrator\n\n"
+                "Without a driver tool you can still use:\n"
+                "• Dump Process Memory\n"
+                "• Live Triage Snapshot",
+            )
+
+    def _capture_physical_ram(self) -> None:
+        tool = find_ram_acquisitor()
+        if not tool:
+            self._check_ram_tool()
+            return
+        if not mb.askokcancel(
+            "Capture Physical RAM",
+            "This will acquire a full physical memory image using:\n"
+            f"  {tool.name}\n\n"
+            "• Requires Administrator rights\n"
+            "• Output can be several GB (size of installed RAM)\n"
+            "• Do not power off the machine during capture\n\n"
+            f"Destination: {self._mem_dest()}\n\nContinue?",
+        ):
+            return
+        self.scan_btn.configure(state="disabled")
+        self.stop_btn.configure(state="disabled")
+
+        def worker():
+            try:
+                result = capture_physical_ram(self._mem_dest(), progress=self._on_progress)
+                self.after(0, lambda: self._memory_done(result))
+            except Exception as exc:
+                self.after(0, lambda: self._memory_error(str(exc)))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _dump_process_memory(self) -> None:
+        try:
+            procs = list_processes()
+        except Exception as e:
+            mb.showerror("Process List", str(e))
+            return
+        if not procs:
+            mb.showinfo("Process List", "No processes returned.")
+            return
+
+        def on_select(pid: int, name: str):
+            if not mb.askokcancel(
+                "Dump Process Memory",
+                f"Dump full memory of:\n  {name} (PID {pid})\n\n"
+                f"Destination: {self._mem_dest()}\n\nContinue?",
+            ):
+                return
+            self.scan_btn.configure(state="disabled")
+
+            def worker():
+                try:
+                    result = dump_process_memory(pid, self._mem_dest(), progress=self._on_progress)
+                    self.after(0, lambda: self._memory_done(result))
+                except Exception as exc:
+                    self.after(0, lambda: self._memory_error(str(exc)))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        ProcessPickerDialog(self, procs, on_select)
+
+    def _live_triage(self) -> None:
+        if not mb.askokcancel(
+            "Live Triage Snapshot",
+            "Collect a live-response package:\n"
+            "• System information\n"
+            "• Running processes\n"
+            "• Network connections\n"
+            "• Environment (secrets filtered)\n"
+            "• Hashed manifest\n\n"
+            f"Destination: {self._mem_dest()}\n\nContinue?",
+        ):
+            return
+        self.scan_btn.configure(state="disabled")
+
+        def worker():
+            try:
+                result = collect_live_triage(
+                    self._mem_dest(), case=self.case, progress=self._on_progress,
+                )
+                self.after(0, lambda: self._memory_done(result))
+            except Exception as exc:
+                self.after(0, lambda: self._memory_error(str(exc)))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _memory_done(self, result: CaptureResult) -> None:
+        self.scan_btn.configure(state="normal")
+        self.status.set_text(f"Memory capture complete: {result.path}")
+        msg = (
+            f"Kind: {result.kind}\n"
+            f"Path: {result.path}\n"
+            f"Size: {result.size:,} bytes\n"
+        )
+        if result.md5:
+            msg += f"MD5: {result.md5}\n"
+        if result.sha256:
+            msg += f"SHA-256: {result.sha256}\n"
+        if result.notes:
+            msg += f"Notes: {result.notes}\n"
+        mb.showinfo("Memory Capture Complete", msg)
+
+    def _memory_error(self, message: str) -> None:
+        self.scan_btn.configure(state="normal")
+        self.status.set_text(f"Memory capture error: {message[:80]}")
+        mb.showerror("Memory Capture Error", message)
 
     def _show_disclaimer(self) -> None:
         mb.showinfo(

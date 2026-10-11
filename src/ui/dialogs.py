@@ -152,3 +152,59 @@ class AboutDialog(ctk.CTkToplevel):
             justify="center",
         ).pack(pady=16, padx=20)
         ctk.CTkButton(self, text="Close", width=100, command=self.destroy).pack(pady=8)
+
+
+class ProcessPickerDialog(ctk.CTkToplevel):
+    """Select a process for memory dump."""
+
+    def __init__(self, master, processes, on_select):
+        super().__init__(master)
+        self.title("Select Process for Memory Dump")
+        self.geometry("640x480")
+        self.transient(master)
+        self.grab_set()
+        self.on_select = on_select
+        self.processes = processes
+
+        ctk.CTkLabel(
+            self, text="Choose a process to dump (run as Administrator for protected processes)",
+            font=ctk.CTkFont(weight="bold"),
+        ).pack(pady=(12, 6), padx=12)
+
+        self.search_var = ctk.StringVar()
+        self.search_var.trace_add("write", lambda *_: self._filter())
+        ctk.CTkEntry(self, textvariable=self.search_var, placeholder_text="Filter by name or PID…").pack(
+            fill="x", padx=12, pady=4
+        )
+
+        self.list_frame = ctk.CTkScrollableFrame(self)
+        self.list_frame.pack(fill="both", expand=True, padx=12, pady=8)
+        self._filter()
+
+        btn = ctk.CTkFrame(self, fg_color="transparent")
+        btn.pack(fill="x", pady=8)
+        ctk.CTkButton(btn, text="Cancel", width=100, fg_color="gray", command=self.destroy).pack(side="right", padx=12)
+
+    def _filter(self) -> None:
+        for w in self.list_frame.winfo_children():
+            w.destroy()
+        q = self.search_var.get().strip().lower()
+        for p in self.processes:
+            label = f"{p.name}  (PID {p.pid})"
+            if p.memory_bytes:
+                label += f"  –  {p.memory_bytes / (1024*1024):.1f} MB"
+            if p.username:
+                label += f"  [{p.username}]"
+            if q and q not in label.lower() and q not in str(p.pid):
+                continue
+            ctk.CTkButton(
+                self.list_frame,
+                text=label,
+                anchor="w",
+                height=32,
+                command=lambda pid=p.pid, name=p.name: self._choose(pid, name),
+            ).pack(fill="x", pady=1)
+
+    def _choose(self, pid: int, name: str) -> None:
+        self.on_select(pid, name)
+        self.destroy()

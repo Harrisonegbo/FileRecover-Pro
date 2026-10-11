@@ -27,6 +27,9 @@ Recovers lost and deleted files (especially images and videos) from disk images,
 | **Hash Verification** | MD5, SHA-1, SHA-256 of recovered evidence |
 | **Hex Viewer** | Inspect raw bytes of carved candidates |
 | **Evidence Filters** | Filter results by image / video / document + name search |
+| **Physical RAM Capture** | Full memory image via WinPmem/DumpIt (Magnet RAM Capture–style) |
+| **Process Memory Dump** | Windows MiniDump of selected processes |
+| **Live Triage** | Processes, network connections, system info, hashed manifest |
 
 ---
 
