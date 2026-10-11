@@ -106,16 +106,18 @@ class RecoveryScanner:
             if d.is_directory:
                 continue
             ext = Path(d.name).suffix.lower()
+            display = d.full_path or d.name
             items.append(RecoverableItem(
-                id=f"mft_{d.mft_ref}",
+                id=f"mft_{d.mft_ref}_{d.sequence}",
                 name=d.name,
-                path=f"MFT#{d.mft_ref}:{d.name}",
+                path=display,
                 size=d.size,
                 file_type=self._classify(ext),
                 source="ntfs_deleted",
                 confidence=d.confidence,
                 offset=d.mft_ref,
                 data=d.resident_data,
+                original_path=display,
             ))
         logger.info("NTFS deleted scan finished: %d files", len(items))
         self._report(1.0, f"Found {len(items):,} deleted NTFS file(s)")
