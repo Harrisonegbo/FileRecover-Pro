@@ -26,6 +26,35 @@ Recovers lost and deleted files (especially images and videos) from disk images,
 
 ---
 
+
+---
+
+## Download (Windows)
+
+**No Python required** – download the portable app and run it on any Windows 10/11 laptop.
+
+| Method | How |
+|--------|-----|
+| **GitHub Releases** | Go to [Releases](https://github.com/Harrisonegbo/FileRecover-Pro/releases) → download `Retrievo-Windows-x64.zip` → unzip → run `Retrievo.exe` |
+| **Build yourself** | On a Windows PC: double-click `build.bat` (needs Python once). Output is in `dist\Retrievo\` |
+
+### Install / Run steps
+1. Download `Retrievo-Windows-x64.zip` from Releases.
+2. Unzip to any folder (e.g. `C:\Tools\Retrievo`).
+3. Right-click **Retrievo.exe** → **Run as administrator** (recommended for disk access).
+4. Recovered files go to a folder you choose (use a different drive than the one you scan).
+
+> This is a **Windows desktop application** (`.exe`), not an Android APK. APKs only work on phones/tablets.
+
+### Create a release build automatically
+Push a version tag to trigger the Windows build workflow:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+The workflow produces `Retrievo-Windows-x64.zip` and attaches it to the GitHub Release.
+
+
 ## Recommended Workflow (Forensic Best Practice)
 
 1. **Create a disk image** of the suspect media (using FTK Imager, `dd`, or similar).
@@ -77,6 +106,8 @@ Retrievo/
 ├── docs/architecture.md
 ├── requirements.txt
 ├── run.bat
+├── build.bat              # Build standalone .exe on Windows
+├── retrievo.spec         # PyInstaller config
 ├── LICENSE
 └── README.md
 ```

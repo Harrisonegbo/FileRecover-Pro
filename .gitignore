@@ -37,3 +37,9 @@ logs/
 
 # Local config
 config.local.json
+
+# PyInstaller / build output
+build/
+dist/
+*.spec.bak
+Retrievo-Windows-x64.zip
