@@ -19,21 +19,21 @@ from core.disk_access import list_physical_drives, list_volumes
 from ui.results_view import ResultsView
 from ui.widgets import ProgressPanel, StatusBar
 
-logger = logging.getLogger("FileRecoverPro")
+logger = logging.getLogger("Retrievo")
 
 
 class MainWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("FileRecover Pro – Forensic File Recovery")
+        self.title("Retrievo – Forensic File Recovery")
         self.geometry("1180x740")
         self.minsize(960, 640)
 
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
 
-        log_dir = Path.home() / "FileRecoverPro_logs"
+        log_dir = Path.home() / "Retrievo_logs"
         log_dir.mkdir(exist_ok=True)
         self.scanner = RecoveryScanner(
             progress_callback=self._on_progress,
@@ -49,7 +49,7 @@ class MainWindow(ctk.CTk):
     def _show_disclaimer(self) -> None:
         mb.showinfo(
             "Forensic Use Notice",
-            "FileRecover Pro is a forensic recovery tool.\n\n"
+            "Retrievo is a forensic recovery tool.\n\n"
             "• Prefer working on disk images (dd/raw), not live drives.\n"
             "• Run as Administrator for raw volume/physical disk access.\n"
             "• Never recover files onto the same drive you are scanning.\n"
@@ -67,7 +67,7 @@ class MainWindow(ctk.CTk):
         toolbar.grid_columnconfigure(5, weight=1)
 
         ctk.CTkLabel(
-            toolbar, text="FileRecover Pro",
+            toolbar, text="Retrievo",
             font=ctk.CTkFont(size=18, weight="bold")
         ).grid(row=0, column=0, padx=12, pady=12)
 

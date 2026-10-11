@@ -1,4 +1,4 @@
-# Contributing to FileRecover Pro
+# Contributing to Retrievo
 
 Thank you for your interest! This is a portfolio prototype, but improvements are welcome.
 

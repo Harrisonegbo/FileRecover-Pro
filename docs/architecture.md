@@ -1,4 +1,4 @@
-# Architecture – FileRecover Pro (Forensic)
+# Architecture – Retrievo (Forensic)
 
 ## Core Pipeline
 

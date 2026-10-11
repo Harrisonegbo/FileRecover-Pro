@@ -1,4 +1,4 @@
-# FileRecover Pro
+# Retrievo
 
 **Open-source Forensic File Recovery Tool for Windows**
 
@@ -30,7 +30,7 @@ Recovers lost and deleted files (especially images and videos) from disk images,
 
 1. **Create a disk image** of the suspect media (using FTK Imager, `dd`, or similar).
 2. Work **only on the image**, never on the original live drive when possible.
-3. Run FileRecover Pro **as Administrator**.
+3. Run Retrievo **as Administrator**.
 4. Select the image → choose **Signature Carve**.
 5. Review results (confidence, offset, preview) and recover to a **different** drive.
 6. Keep the generated recovery report with your case notes.
@@ -47,8 +47,8 @@ Recovers lost and deleted files (especially images and videos) from disk images,
 ### Install & Run
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/FileRecoverPro.git
-cd FileRecoverPro
+git clone https://github.com/Harrisonegbo/Retrievo.git
+cd Retrievo
 
 python -m venv venv
 venv\Scripts\activate
@@ -63,7 +63,7 @@ python src/main.py
 ## Project Structure
 
 ```
-FileRecoverPro/
+Retrievo/
 ├── src/
 │   ├── main.py
 │   ├── core/

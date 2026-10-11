@@ -15,7 +15,7 @@ from typing import Callable, List, Optional
 
 from .scanner import RecoverableItem
 
-logger = logging.getLogger("FileRecoverPro")
+logger = logging.getLogger("Retrievo")
 
 
 class RecoveryEngine:
@@ -102,7 +102,7 @@ class RecoveryEngine:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump({
                 "generated": datetime.now(timezone.utc).isoformat(),
-                "tool": "FileRecover Pro",
+                "tool": "Retrievo",
                 "count": len(rows),
                 "files": rows,
             }, f, indent=2)

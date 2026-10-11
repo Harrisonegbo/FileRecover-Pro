@@ -20,7 +20,7 @@ from .carver import CarvedFile, FileCarver
 from .disk_access import open_source, list_physical_drives, list_volumes, DriveInfo
 from .signatures import get_all_signatures, get_image_signatures, get_video_signatures
 
-logger = logging.getLogger("FileRecoverPro")
+logger = logging.getLogger("Retrievo")
 
 
 @dataclass

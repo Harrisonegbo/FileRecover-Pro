@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FileRecover Pro – Windows Desktop File Recovery Prototype
+Retrievo – Forensic File Recovery Tool
 Entry point.
 """
 
