@@ -138,7 +138,7 @@ class AboutDialog(ctk.CTkToplevel):
         self.grab_set()
 
         ctk.CTkLabel(self, text="Retrievo", font=ctk.CTkFont(size=22, weight="bold")).pack(pady=(24, 4))
-        ctk.CTkLabel(self, text="Forensic File Recovery Suite  v1.1").pack()
+        ctk.CTkLabel(self, text="Digital Forensics Suite  v1.2").pack()
         ctk.CTkLabel(
             self,
             text=(

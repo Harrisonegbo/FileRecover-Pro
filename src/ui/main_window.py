@@ -36,7 +36,7 @@ class MainWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Retrievo – Forensic File Recovery Suite")
+        self.title("Retrievo – Digital Forensics & Deleted File Recovery")
         self.geometry("1280x800")
         self.minsize(1024, 680)
 
@@ -84,10 +84,14 @@ class MainWindow(ctk.CTk):
         menubar.add_cascade(label="File", menu=file_m)
 
         scan_m = tk.Menu(menubar, tearoff=0)
-        scan_m.add_command(label="Signature Carve (Deep)", command=lambda: self._set_mode_and_scan("carve"))
-        scan_m.add_command(label="Media-Only Carve", command=lambda: self._set_mode_and_scan("carve_media"))
-        scan_m.add_command(label="Recycle Bin Recovery", command=lambda: self._set_mode_and_scan("recycle"))
-        scan_m.add_command(label="Quick Media Scan", command=lambda: self._set_mode_and_scan("quick"))
+        scan_m.add_command(label="Recover Deleted Files (NTFS $MFT)…", command=lambda: self._set_mode_and_scan("ntfs"))
+        scan_m.add_command(label="Recycle Bin Recovery…", command=lambda: self._set_mode_and_scan("recycle"))
+        scan_m.add_separator()
+        scan_m.add_command(label="Signature Carve (Deep)…", command=lambda: self._set_mode_and_scan("carve"))
+        scan_m.add_command(label="Media-Only Carve…", command=lambda: self._set_mode_and_scan("carve_media"))
+        scan_m.add_command(label="Quick Filesystem Scan…", command=lambda: self._set_mode_and_scan("quick"))
+        scan_m.add_separator()
+        scan_m.add_command(label="Full Local Disk Recovery…", command=self._full_local_recovery)
         scan_m.add_separator()
         scan_m.add_command(label="Stop Current Scan", command=self._stop_scan)
         menubar.add_cascade(label="Scan", menu=scan_m)
@@ -145,11 +149,12 @@ class MainWindow(ctk.CTk):
         # Mode toolbar
         toolbar = ctk.CTkFrame(self)
         toolbar.grid(row=1, column=0, sticky="ew", padx=10, pady=4)
-        self.mode_var = ctk.StringVar(value="carve")
+        self.mode_var = ctk.StringVar(value="ntfs")
         modes = [
+            ("Deleted (NTFS)", "ntfs"),
+            ("Recycle Bin", "recycle"),
             ("Deep Carve", "carve"),
             ("Media Carve", "carve_media"),
-            ("Recycle Bin", "recycle"),
             ("Quick Scan", "quick"),
         ]
         for i, (text, value) in enumerate(modes):
@@ -171,7 +176,7 @@ class MainWindow(ctk.CTk):
         self.target_var = ctk.StringVar(value="")
         ctk.CTkEntry(
             controls, textvariable=self.target_var,
-            placeholder_text="Disk image (.dd/.img/.raw), folder, \\\\.\\PhysicalDriveN or \\\\.\\C:",
+            placeholder_text="Local volume \\\\.\\C:  |  disk image (.dd/.img)  |  folder",
         ).grid(row=0, column=1, sticky="ew", padx=4, pady=8)
 
         ctk.CTkButton(controls, text="Image…", width=80, command=self._browse_file).grid(row=0, column=2, padx=2, pady=8)
@@ -226,7 +231,7 @@ class MainWindow(ctk.CTk):
 
         self.status = StatusBar(self)
         self.status.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 8))
-        self.status.set_text("Ready – Open a disk image or select a scan mode from the Scan menu")
+        self.status.set_text("Ready – Select a local disk (File → List Drives) then Scan → Recover Deleted Files (NTFS)")
 
     # ------------------------------------------------------------------
     # Case / settings
@@ -344,6 +349,68 @@ class MainWindow(ctk.CTk):
                 self.settings["media_only"] = False
         self._start_scan()
 
+    def _full_local_recovery(self) -> None:
+        """Run NTFS deleted + Recycle Bin + optional carve on a local volume."""
+        target = self.target_var.get().strip()
+        if not target:
+            mb.showwarning(
+                "Select a local disk",
+                "Choose a Windows volume first (e.g. \\\\.\\C: or D:\\).\n"
+                "Use File → List Drives / Volumes, then Full Local Disk Recovery.\n\n"
+                "Run as Administrator for best results.",
+            )
+            self._list_drives()
+            return
+        if not mb.askokcancel(
+            "Full Local Disk Recovery",
+            "This will run:\n"
+            "  1. NTFS deleted file recovery ($MFT)\n"
+            "  2. Recycle Bin recovery\n"
+            "  3. Signature carve (media)\n\n"
+            f"Source: {target}\n\n"
+            "May take a long time on large disks. Continue?",
+        ):
+            return
+        self.scan_btn.configure(state="disabled")
+        self.stop_btn.configure(state="normal")
+        self.results.set_items([])
+        self.current_items = []
+
+        def worker():
+            try:
+                combined = []
+                self._on_progress(0.02, "Phase 1/3 – NTFS deleted files…")
+                try:
+                    combined.extend(self.scanner.scan_ntfs_deleted(target))
+                except Exception as e:
+                    logger.warning("NTFS phase: %s", e)
+                if not self.scanner._stop:
+                    self._on_progress(0.4, "Phase 2/3 – Recycle Bin…")
+                    try:
+                        combined.extend(self.scanner.scan_recycle_bin())
+                    except Exception as e:
+                        logger.warning("Recycle phase: %s", e)
+                if not self.scanner._stop:
+                    self._on_progress(0.7, "Phase 3/3 – Signature carve (media)…")
+                    try:
+                        combined.extend(self.scanner.scan_signatures(target, media_only=True))
+                    except Exception as e:
+                        logger.warning("Carve phase: %s", e)
+                # Dedupe by name+size roughly
+                seen = set()
+                unique = []
+                for it in combined:
+                    key = (it.name, it.size, it.source)
+                    if key not in seen:
+                        seen.add(key)
+                        unique.append(it)
+                self.after(0, lambda: self._scan_finished(unique))
+            except Exception as exc:
+                self.after(0, lambda: self._scan_error(str(exc)))
+
+        self._scan_thread = threading.Thread(target=worker, daemon=True)
+        self._scan_thread.start()
+
     def _start_scan(self) -> None:
         target = self.target_var.get().strip()
         mode = self.mode_var.get()
@@ -364,7 +431,9 @@ class MainWindow(ctk.CTk):
 
         def worker():
             try:
-                if mode == "recycle":
+                if mode == "ntfs":
+                    items = self.scanner.scan_ntfs_deleted(target)
+                elif mode == "recycle":
                     items = self.scanner.scan_recycle_bin()
                 elif mode in ("carve", "carve_media"):
                     items = self.scanner.scan_signatures(target, media_only=media_only)
@@ -621,11 +690,11 @@ class MainWindow(ctk.CTk):
     def _show_disclaimer(self) -> None:
         mb.showinfo(
             "Forensic Use Notice",
-            "Retrievo is a forensic recovery suite.\n\n"
-            "• Prefer disk images (dd/raw), not live drives.\n"
-            "• Run as Administrator for raw volume/physical disk access.\n"
-            "• Never recover files onto the same drive you are scanning.\n"
-            "• Verify recovered files; false positives are possible.\n"
-            "• Document case ID, examiner, and source media for chain of custody.\n\n"
-            "For legitimate recovery and digital forensics training only.",
+            "Retrievo recovers deleted files from Windows PCs and laptops.\n\n"
+            "• Primary method: NTFS $MFT deleted-file recovery on local disks.\n"
+            "• Run as Administrator for full access to C:, D:, etc.\n"
+            "• Prefer forensic disk images when investigating; live disks OK for personal recovery.\n"
+            "• Never recover onto the same partition you are scanning.\n"
+            "• Overwritten data cannot be guaranteed recoverable.\n\n"
+            "For legitimate personal recovery and digital forensics training.",
         )

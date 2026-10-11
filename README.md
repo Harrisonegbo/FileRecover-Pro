@@ -2,7 +2,7 @@
 
 **Open-source Forensic File Recovery Tool for Windows**
 
-Recovers lost and deleted files (especially images and videos) from disk images, volumes, and physical drives using signature-based carving and Recycle Bin enumeration.
+Professional digital forensics suite for Windows desktops and laptops. Recovers deleted files from local NTFS disks via $MFT analysis, Recycle Bin metadata, signature carving, and optional memory acquisition.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)
