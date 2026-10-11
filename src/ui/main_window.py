@@ -288,7 +288,9 @@ class MainWindow(ctk.CTk):
         path = fd.askopenfilename(
             title="Select disk image or binary evidence file",
             filetypes=[
+                ("Forensic images", "*.E01 *.e01 *.EX01 *.AFF4 *.aff4"),
                 ("Disk images", "*.dd *.img *.raw *.bin"),
+                ("All evidence", "*.E01 *.e01 *.dd *.img *.raw *.bin *.AFF4"),
                 ("All files", "*.*"),
             ],
         )

@@ -17,7 +17,7 @@ Professional digital forensics suite for Windows desktops and laptops. Recovers 
 |------------|---------|
 | **Signature Carving** | Scans raw data for known magic numbers (JPEG, PNG, GIF, BMP, TIFF, WebP, MP4, AVI, MOV, MKV, FLV, WMV, PDF, ZIP, RAR, 7z, SQLite) |
 | **Raw Disk Access** | Opens Windows physical drives (`\\.\PhysicalDriveN`) and volumes (`\\.\C:`) when run as Administrator |
-| **Disk Image Support** | Works with `.dd`, `.img`, `.raw`, `.bin` and any binary dump |
+| **Disk Image Support** | `.dd` / `.img` / `.raw` plus forensic **E01** (EnCase) and **AFF4** |
 | **Recycle Bin Recovery** | Enumerates files still present in `$Recycle.Bin` and TEMP locations |
 | **Confidence Scoring** | Header + footer + format-specific validators produce a confidence score |
 | **Forensic Reporting** | Generates CSV + JSON recovery reports with offsets, sizes, and confidence |

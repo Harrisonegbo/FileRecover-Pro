@@ -118,33 +118,50 @@ def list_volumes() -> List[DriveInfo]:
 
 def open_source(path: str) -> Tuple[BinaryIO, int]:
     """
-    Open a file, disk image, or raw device and return (stream, size).
-    Caller is responsible for closing the stream.
+    Open a file, disk image (raw/dd/E01/AFF4), or raw device.
+    Returns (stream, size). Caller is responsible for closing the stream.
     """
-    # Prefer ordinary file open first (works for images everywhere)
     p = Path(path)
-    if p.is_file() and not path.startswith("\\\\.\\") and not path.startswith("/dev/"):
-        size = p.stat().st_size
-        return open(path, "rb"), size
+    path_str = str(path)
 
-    if is_windows() and (path.startswith("\\\\.\\") or path.startswith(r"\\.\ ")):
-        handle = _win_open_raw(path)
+    # Forensic evidence containers (E01 / AFF4)
+    if p.is_file():
+        suffix = p.suffix.lower()
+        forensic_ext = {".e01", ".ex01", ".l01", ".lx01", ".s01", ".aff", ".aff4", ".afd", ".afm"}
+        if suffix in forensic_ext or _looks_like_e01(p):
+            from .image_formats import open_forensic_image
+            return open_forensic_image(p)
+
+    # Windows raw volume / physical drive paths: \\.\C: or \\.\PhysicalDrive0
+    if is_windows() and ("PhysicalDrive" in path_str or path_str.startswith("\\\\.\\")):
+        handle = _win_open_raw(path_str)
         if handle is None:
             raise PermissionError(
                 f"Cannot open {path}. Run as Administrator and ensure the volume is not locked."
             )
         size = _win_get_size(handle)
-        # Wrap the Windows handle in a file-like object
         return _WinRawStream(handle, size), size
 
-    # Linux raw device
-    if path.startswith("/dev/"):
+    # Linux block devices
+    if path_str.startswith("/dev/"):
         size = _linux_block_size(Path(path))
         return open(path, "rb"), size
 
-    # Fallback
-    size = Path(path).stat().st_size
-    return open(path, "rb"), size
+    # Ordinary files and raw/dd/img images
+    if p.is_file():
+        size = p.stat().st_size
+        return open(path, "rb"), size
+
+    raise FileNotFoundError(path)
+
+
+def _looks_like_e01(path: Path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            sig = f.read(8)
+        return sig == bytes([0x45, 0x56, 0x46, 0x09, 0x0D, 0x0A, 0xFF, 0x00])
+    except OSError:
+        return False
 
 
 # ------------------------------------------------------------------

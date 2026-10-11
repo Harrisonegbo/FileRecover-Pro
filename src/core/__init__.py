@@ -3,6 +3,7 @@ from .carver import FileCarver, CarvedFile
 from .recover import RecoveryEngine
 from .signatures import SIGNATURES
 from .disk_access import DriveInfo, list_physical_drives, list_volumes, open_source
+from .image_formats import open_forensic_image, is_e01, is_aff, E01Image
 from .forensics import CaseInfo, hash_bytes, hash_file, hex_dump
 from .ntfs import DeletedFile, open_ntfs_and_scan, parse_boot_sector, MftTimestamps, DataStream
 from .memory_capture import (

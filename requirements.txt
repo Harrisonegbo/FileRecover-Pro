@@ -2,3 +2,7 @@ customtkinter>=5.2.0
 Pillow>=10.0.0
 pywin32>=306; sys_platform == 'win32'
 psutil>=5.9.0
+
+# Optional forensic image backends
+# pyewf>=20231213
+# pyaff4>=0.26
