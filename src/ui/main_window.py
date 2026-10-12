@@ -70,63 +70,147 @@ class MainWindow(ctk.CTk):
     # Menu bar (native tk Menu for reliability)
     # ------------------------------------------------------------------
     def _build_menu(self) -> None:
-        menubar = tk.Menu(self)
+        """Native menu bar – lightweight construction, deferred actions for instant response."""
+        menubar = tk.Menu(self, tearoff=0)
+        # Keep references so GC does not drop cascades on some platforms
+        self._menus = []
+
+        def fast(fn):
+            """Close menu immediately; run handler on next idle tick (keeps UI snappy)."""
+            def wrapper(*_a, **_k):
+                self.after_idle(fn)
+            return wrapper
 
         file_m = tk.Menu(menubar, tearoff=0)
-        file_m.add_command(label="Open Disk Image…", command=self._browse_file, accelerator="Ctrl+O")
-        file_m.add_command(label="Open Folder…", command=self._browse_folder)
-        file_m.add_command(label="List Drives / Volumes…", command=self._list_drives)
+        file_m.add_command(label="Open Disk Image…", command=fast(self._browse_file), accelerator="Ctrl+O")
+        file_m.add_command(label="Open Folder…", command=fast(self._browse_folder), accelerator="Ctrl+Shift+O")
+        file_m.add_command(label="List Drives / Volumes…", command=fast(self._list_drives), accelerator="Ctrl+D")
         file_m.add_separator()
-        file_m.add_command(label="Case Information…", command=self._edit_case)
-        file_m.add_command(label="Export Case Report…", command=self._export_case_summary)
+        file_m.add_command(label="Case Information…", command=fast(self._edit_case), accelerator="Ctrl+Shift+C")
+        file_m.add_command(label="Export Case Report…", command=fast(self._export_case_summary))
         file_m.add_separator()
-        file_m.add_command(label="Exit", command=self.destroy)
+        file_m.add_command(label="Exit", command=self.destroy, accelerator="Alt+F4")
         menubar.add_cascade(label="File", menu=file_m)
+        self._menus.append(file_m)
 
         scan_m = tk.Menu(menubar, tearoff=0)
-        scan_m.add_command(label="Recover Deleted Files (NTFS $MFT)…", command=lambda: self._set_mode_and_scan("ntfs"))
-        scan_m.add_command(label="Recycle Bin Recovery…", command=lambda: self._set_mode_and_scan("recycle"))
+        scan_m.add_command(label="Recover Deleted Files (NTFS $MFT)…",
+                           command=fast(lambda: self._set_mode_and_scan("ntfs")), accelerator="F5")
+        scan_m.add_command(label="Recycle Bin Recovery…",
+                           command=fast(lambda: self._set_mode_and_scan("recycle")))
         scan_m.add_separator()
-        scan_m.add_command(label="Signature Carve (Deep)…", command=lambda: self._set_mode_and_scan("carve"))
-        scan_m.add_command(label="Media-Only Carve…", command=lambda: self._set_mode_and_scan("carve_media"))
-        scan_m.add_command(label="Quick Filesystem Scan…", command=lambda: self._set_mode_and_scan("quick"))
+        scan_m.add_command(label="Signature Carve (Deep)…",
+                           command=fast(lambda: self._set_mode_and_scan("carve")))
+        scan_m.add_command(label="Media-Only Carve…",
+                           command=fast(lambda: self._set_mode_and_scan("carve_media")))
+        scan_m.add_command(label="Quick Filesystem Scan…",
+                           command=fast(lambda: self._set_mode_and_scan("quick")))
         scan_m.add_separator()
-        scan_m.add_command(label="Full Local Disk Recovery…", command=self._full_local_recovery)
+        scan_m.add_command(label="Full Local Disk Recovery…",
+                           command=fast(self._full_local_recovery), accelerator="Ctrl+F5")
         scan_m.add_separator()
-        scan_m.add_command(label="Stop Current Scan", command=self._stop_scan)
+        scan_m.add_command(label="Stop Current Scan", command=fast(self._stop_scan), accelerator="Esc")
         menubar.add_cascade(label="Scan", menu=scan_m)
+        self._menus.append(scan_m)
 
         tools_m = tk.Menu(menubar, tearoff=0)
-        tools_m.add_command(label="Hash Selected Files…", command=self._hash_selected)
-        tools_m.add_command(label="Hex View Selected…", command=self._hex_selected)
+        tools_m.add_command(label="Hash Selected Files…", command=fast(self._hash_selected), accelerator="Ctrl+H")
+        tools_m.add_command(label="Hex View Selected…", command=fast(self._hex_selected), accelerator="Ctrl+E")
         tools_m.add_separator()
-        tools_m.add_command(label="Recover Selected…", command=self._start_recover)
+        tools_m.add_command(label="Recover Selected…", command=fast(self._start_recover), accelerator="Ctrl+R")
         tools_m.add_separator()
-        tools_m.add_command(label="Settings…", command=self._open_settings)
+        tools_m.add_command(label="Settings…", command=fast(self._open_settings), accelerator="Ctrl+,")
         menubar.add_cascade(label="Tools", menu=tools_m)
+        self._menus.append(tools_m)
 
         mem_m = tk.Menu(menubar, tearoff=0)
-        mem_m.add_command(label="Capture Physical RAM…", command=self._capture_physical_ram)
-        mem_m.add_command(label="Dump Process Memory…", command=self._dump_process_memory)
+        mem_m.add_command(label="Capture Physical RAM…", command=fast(self._capture_physical_ram))
+        mem_m.add_command(label="Dump Process Memory…", command=fast(self._dump_process_memory))
         mem_m.add_separator()
-        mem_m.add_command(label="Live Triage Snapshot…", command=self._live_triage)
+        mem_m.add_command(label="Live Triage Snapshot…", command=fast(self._live_triage))
         mem_m.add_separator()
-        mem_m.add_command(label="Check RAM Acquisition Tool…", command=self._check_ram_tool)
+        mem_m.add_command(label="Check RAM Acquisition Tool…", command=fast(self._check_ram_tool))
         menubar.add_cascade(label="Memory", menu=mem_m)
+        self._menus.append(mem_m)
 
         view_m = tk.Menu(menubar, tearoff=0)
-        view_m.add_command(label="Select All Results", command=lambda: self.results.select_all())
-        view_m.add_command(label="Select None", command=lambda: self.results.select_none())
-        view_m.add_command(label="Select High Confidence", command=lambda: self.results.select_high())
+        view_m.add_command(label="Select All Results", command=fast(self._view_select_all), accelerator="Ctrl+A")
+        view_m.add_command(label="Select None", command=fast(self._view_select_none))
+        view_m.add_command(label="Select High Confidence", command=fast(self._view_select_high))
         menubar.add_cascade(label="View", menu=view_m)
+        self._menus.append(view_m)
 
         help_m = tk.Menu(menubar, tearoff=0)
-        help_m.add_command(label="Forensic Best Practices", command=self._show_disclaimer)
-        help_m.add_command(label="About Retrievo", command=lambda: AboutDialog(self))
+        help_m.add_command(label="Forensic Best Practices", command=fast(self._show_disclaimer))
+        help_m.add_command(label="About Retrievo", command=fast(lambda: AboutDialog(self)))
         menubar.add_cascade(label="Help", menu=help_m)
+        self._menus.append(help_m)
 
         self.configure(menu=menubar)
-        self.bind("<Control-o>", lambda e: self._browse_file())
+        self._menubar = menubar
+
+        # Accelerators – bound once, no menu traversal delay
+        binds = {
+            "<Control-o>": self._browse_file,
+            "<Control-O>": self._browse_file,
+            "<Control-Shift-O>": self._browse_folder,
+            "<Control-d>": self._list_drives,
+            "<Control-D>": self._list_drives,
+            "<Control-h>": self._hash_selected,
+            "<Control-H>": self._hash_selected,
+            "<Control-e>": self._hex_selected,
+            "<Control-E>": self._hex_selected,
+            "<Control-r>": self._start_recover,
+            "<Control-R>": self._start_recover,
+            "<Control-a>": lambda e: self.results.select_all() if hasattr(self, "results") else None,
+            "<Control-A>": lambda e: self.results.select_all() if hasattr(self, "results") else None,
+            "<F5>": lambda e: self._set_mode_and_scan("ntfs"),
+            "<Control-F5>": lambda e: self._full_local_recovery(),
+            "<Escape>": lambda e: self._stop_scan(),
+        }
+        def _bind(seq, fn):
+            self.bind(seq, lambda e: (fn(), "break")[1] if False else (fn() or "break"))
+
+        self.bind("<Control-o>", lambda e: (self._browse_file(), "break")[1])
+        self.bind("<Control-d>", lambda e: (self._list_drives(), "break")[1])
+        self.bind("<Control-h>", lambda e: (self._hash_selected(), "break")[1])
+        self.bind("<Control-e>", lambda e: (self._hex_selected(), "break")[1])
+        self.bind("<Control-r>", lambda e: (self._start_recover(), "break")[1])
+        self.bind("<Control-a>", lambda e: (hasattr(self, "results") and self.results.select_all(), "break")[1])
+        self.bind("<F5>", lambda e: (self._set_mode_and_scan("ntfs"), "break")[1])
+        self.bind("<Control-F5>", lambda e: (self._full_local_recovery(), "break")[1])
+        self.bind("<Escape>", lambda e: (self._stop_scan(), "break")[1])
+
+        # Warm caches in background so first menu action is instant
+        self.after(50, self._warm_caches)
+
+    def _warm_caches(self) -> None:
+        def work():
+            try:
+                from core.disk_access import list_physical_drives, list_volumes
+                drives = list_physical_drives() + list_volumes()
+                self._drive_cache = drives
+            except Exception:
+                self._drive_cache = []
+            try:
+                from core.memory_capture import find_ram_acquisitor
+                self._ram_tool_cache = find_ram_acquisitor()
+            except Exception:
+                self._ram_tool_cache = None
+        threading.Thread(target=work, daemon=True).start()
+
+    def _view_select_all(self) -> None:
+        if hasattr(self, "results"):
+            self.results.select_all()
+
+    def _view_select_none(self) -> None:
+        if hasattr(self, "results"):
+            self.results.select_none()
+
+    def _view_select_high(self) -> None:
+        if hasattr(self, "results"):
+            self.results.select_high()
+
 
     # ------------------------------------------------------------------
     def _build_ui(self) -> None:
@@ -312,7 +396,17 @@ class MainWindow(ctk.CTk):
 
     def _list_drives(self) -> None:
         try:
-            drives = list_physical_drives() + list_volumes()
+            drives = getattr(self, "_drive_cache", None)
+            if not drives:
+                drives = list_physical_drives() + list_volumes()
+                self._drive_cache = drives
+            else:
+                def _refresh():
+                    try:
+                        self._drive_cache = list_physical_drives() + list_volumes()
+                    except Exception:
+                        pass
+                threading.Thread(target=_refresh, daemon=True).start()
             if not drives:
                 mb.showinfo("Drives", "No drives enumerated.\nOn Windows run as Administrator.")
                 return
@@ -565,7 +659,10 @@ class MainWindow(ctk.CTk):
         return dest
 
     def _check_ram_tool(self) -> None:
-        tool = find_ram_acquisitor()
+        tool = getattr(self, "_ram_tool_cache", None)
+        if tool is None:
+            tool = find_ram_acquisitor()
+            self._ram_tool_cache = tool
         if tool:
             mb.showinfo(
                 "RAM Acquisition Tool",
@@ -614,14 +711,23 @@ class MainWindow(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _dump_process_memory(self) -> None:
-        try:
-            procs = list_processes()
-        except Exception as e:
-            mb.showerror("Process List", str(e))
-            return
+        self.status.set_text("Loading process list…")
+
+        def load():
+            try:
+                procs = list_processes()
+            except Exception as e:
+                self.after(0, lambda: mb.showerror("Process List", str(e)))
+                return
+            self.after(0, lambda: self._open_process_picker(procs))
+
+        threading.Thread(target=load, daemon=True).start()
+
+    def _open_process_picker(self, procs) -> None:
         if not procs:
             mb.showinfo("Process List", "No processes returned.")
             return
+        self.status.set_text(f"{len(procs)} processes – select one to dump")
 
         def on_select(pid: int, name: str):
             if not mb.askokcancel(

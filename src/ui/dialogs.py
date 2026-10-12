@@ -189,21 +189,32 @@ class ProcessPickerDialog(ctk.CTkToplevel):
         for w in self.list_frame.winfo_children():
             w.destroy()
         q = self.search_var.get().strip().lower()
+        shown = 0
+        limit = 300  # keep dialog responsive
         for p in self.processes:
+            name_l = (p.name or "").lower()
+            if q and q not in name_l and q not in str(p.pid):
+                continue
             label = f"{p.name}  (PID {p.pid})"
             if p.memory_bytes:
                 label += f"  –  {p.memory_bytes / (1024*1024):.1f} MB"
             if p.username:
                 label += f"  [{p.username}]"
-            if q and q not in label.lower() and q not in str(p.pid):
-                continue
             ctk.CTkButton(
                 self.list_frame,
                 text=label,
                 anchor="w",
-                height=32,
+                height=28,
                 command=lambda pid=p.pid, name=p.name: self._choose(pid, name),
-            ).pack(fill="x", pady=1)
+            ).pack(fill="x", pady=0)
+            shown += 1
+            if shown >= limit:
+                ctk.CTkLabel(
+                    self.list_frame,
+                    text=f"… showing {limit} of many – refine filter",
+                    text_color="gray",
+                ).pack(pady=4)
+                break
 
     def _choose(self, pid: int, name: str) -> None:
         self.on_select(pid, name)

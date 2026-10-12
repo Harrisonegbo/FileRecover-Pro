@@ -108,8 +108,11 @@ class ResultsView(ctk.CTkFrame):
             widget.destroy()
         self.items = items
         self.check_vars = []
+        # Render in batches so the UI stays responsive with large result sets
+        visible = items[:800]
+        self._hidden_count = max(0, len(items) - len(visible))
 
-        for idx, item in enumerate(items):
+        for idx, item in enumerate(visible):
             default = item.confidence >= 0.75 if auto_select_high else item.confidence >= 0.6
             var = ctk.BooleanVar(value=default)
             self.check_vars.append(var)
@@ -129,7 +132,10 @@ class ResultsView(ctk.CTkFrame):
             lbl.bind("<Button-1>", lambda e, i=idx: self._show_preview(i))
             lbl.bind("<Double-Button-1>", lambda e, i=idx: self._activate(i))
 
-        self.count_label.configure(text=f"{len(items)} shown / {len(self._all_items)} total")
+        extra = f"  (display capped at 800)" if getattr(self, "_hidden_count", 0) else ""
+        self.count_label.configure(
+            text=f"{len(self.check_vars)} shown / {len(self._all_items)} total{extra}"
+        )
         self._notify()
 
     def get_selected(self) -> List[RecoverableItem]:
